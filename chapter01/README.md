@@ -1,3 +1,15 @@
+# x86은 bootloader를 만들어야한다.
+
+```bash
+rustup component add llvm-tools-preview
+```
+
+- https://github.com/rust-osdev/bootloader  
+
+- https://github.com/rust-osdev/bootloader/blob/main/examples/basic/basic-os.md
+
+<hr />
+
 # 완성된 코드 x86_64 OS(Rust로 만든거)
 
 - https://github.com/phil-opp/blog_os/tree/post-12
