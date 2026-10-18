@@ -1,3 +1,19 @@
+# qemu 간단한 키 정리
+
+- https://www.qemu.org/docs/master/system/keys.html
+
+```bash
+# full Screen(한번 더 눌르면 풀스크린 풀림)
+Ctrl + Alt + f
+
+
+# 마우스 안되게 
+Ctrl + Alt + g
+
+
+```
+
+
 # x86은 bootloader를 만들어야한다.
 
 ```bash
