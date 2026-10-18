@@ -12,3 +12,12 @@ $ cargo run uefi
 just qemu
 
 ```
+
+
+## 내가 만든 이미지 파일 찾기
+
+```bash
+find target -type f \
+    \( -name 'a02_hello_world' -o -name '*.elf' -o -name '*.iso' -o -name '*.img' \) \
+    -print
+```
