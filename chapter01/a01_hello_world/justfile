@@ -1,0 +1,11 @@
+project_name := `basename "$(pwd)"`
+target_machine := "x86_64-unknown-none"
+
+qemu:
+    cargo build --target {{target_machine}}
+    qemu-system-x86_64 \
+          -machine q35 \
+          -m 512M \
+          -m 256M \
+          -nographic \
+          -kernel target/{{target_machine}}/debug/{{project_name}}

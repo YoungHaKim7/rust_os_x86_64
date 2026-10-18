@@ -1,0 +1,27 @@
+[package]
+name = "a02_hello_world"
+version = "0.1.0"
+edition = "2024"
+
+
+[workspace]
+resolver = "3"
+members = ["kernel"]
+
+[dependencies]
+ovmf-prebuilt = "0.2.4"
+
+[build-dependencies]
+bootloader = { version = "0.11.17", features = ["bios", "uefi"] }
+kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none" }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[[bin]]
+name = "a02_hello_world"
+test = false
+bench = false
