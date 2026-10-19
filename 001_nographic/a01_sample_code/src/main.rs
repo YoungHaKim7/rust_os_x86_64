@@ -23,24 +23,28 @@ const COM1: u16 = 0x3F8;
 #[inline(always)]
 unsafe fn inb(port: u16) -> u8 {
     let value: u8;
-    asm!(
-        "in al, dx",
-        out("al") value,
-        in("dx") port,
-        options(nomem, nostack, preserves_flags),
-    );
+    unsafe {
+        asm!(
+            "in al, dx",
+            out("al") value,
+            in("dx") port,
+            options(nomem, nostack, preserves_flags),
+        );
+    }
     value
 }
 
 /// I/O port write — `out dx, al`.
 #[inline(always)]
 unsafe fn outb(port: u16, value: u8) {
-    asm!(
-        "out dx, al",
-        in("al") value,
-        in("dx") port,
-        options(nomem, nostack, preserves_flags),
-    );
+    unsafe {
+        asm!(
+            "out dx, al",
+            in("al") value,
+            in("dx") port,
+            options(nomem, nostack, preserves_flags),
+        );
+    }
 }
 
 /// Initialize COM1 to 38400 baud, 8N1, FIFO enabled, interrupts off.
@@ -163,7 +167,12 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     println!();
     println!("!!! KERNEL PANIC !!!");
     if let Some(location) = info.location() {
-        println!("  at {}:{}:{}", location.file(), location.line(), location.column());
+        println!(
+            "  at {}:{}:{}",
+            location.file(),
+            location.line(),
+            location.column()
+        );
     }
     println!("  halting.");
     loop {
