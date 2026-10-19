@@ -21,7 +21,7 @@ const COM1: u16 = 0x3F8;
 
 /// I/O port read — `in al, dx`.
 #[inline(always)]
-unsafe fn inb(port: u16) -> u8 {
+fn inb(port: u16) -> u8 {
     let value: u8;
     unsafe {
         asm!(
@@ -36,7 +36,7 @@ unsafe fn inb(port: u16) -> u8 {
 
 /// I/O port write — `out dx, al`.
 #[inline(always)]
-unsafe fn outb(port: u16, value: u8) {
+fn outb(port: u16, value: u8) {
     unsafe {
         asm!(
             "out dx, al",
@@ -58,26 +58,22 @@ unsafe fn outb(port: u16, value: u8) {
 ///   +5  line status  (bit 5 = "transmit holding register empty")
 ///   +6  modem status
 pub fn init_serial() {
-    unsafe {
-        outb(COM1 + 1, 0x00); // Disable all interrupts
-        outb(COM1 + 3, 0x80); // Enable DLAB (set baud rate divisor)
-        outb(COM1 + 0, 0x03); // Divisor low  byte = 3  -> 38400 baud
-        outb(COM1 + 1, 0x00); // Divisor high byte = 0
-        outb(COM1 + 3, 0x03); // 8 bits, no parity, one stop bit (clears DLAB)
-        outb(COM1 + 2, 0xC7); // Enable FIFO, clear them, 14-byte threshold
-        outb(COM1 + 4, 0x0B); // IRQs enabled, RTS/DSR set
-    }
+    outb(COM1 + 1, 0x00); // Disable all interrupts
+    outb(COM1 + 3, 0x80); // Enable DLAB (set baud rate divisor)
+    outb(COM1 + 0, 0x03); // Divisor low  byte = 3  -> 38400 baud
+    outb(COM1 + 1, 0x00); // Divisor high byte = 0
+    outb(COM1 + 3, 0x03); // 8 bits, no parity, one stop bit (clears DLAB)
+    outb(COM1 + 2, 0xC7); // Enable FIFO, clear them, 14-byte threshold
+    outb(COM1 + 4, 0x0B); // IRQs enabled, RTS/DSR set
 }
 
 /// Blocking put of a single byte over COM1.
 pub fn serial_put_byte(byte: u8) {
-    unsafe {
-        // Poll Line Status Register bit 5 (THR empty).
-        while inb(COM1 + 5) & 0x20 == 0 {
-            core::hint::spin_loop();
-        }
-        outb(COM1, byte);
+    // Poll Line Status Register bit 5 (THR empty).
+    while inb(COM1 + 5) & 0x20 == 0 {
+        core::hint::spin_loop();
     }
+    outb(COM1, byte);
 }
 
 // ============================================================
