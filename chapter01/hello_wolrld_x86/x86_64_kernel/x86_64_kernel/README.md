@@ -1,5 +1,5 @@
 # Run
 
 ```bash
-just qemu
+just
 ```
