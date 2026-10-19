@@ -22,12 +22,15 @@
 set shell := ["bash", "-cu"]
 set dotenv-load := false
 
-# Use the directory containing this justfile as the project root.
+# Project root: directory containing this justfile.
 project_dir := justfile_directory()
+
+# Get the project directory's name using the shell.
 project_name := `basename "$(pwd)"`
 
-kernel_elf := "target/x86_64-unknown-none/release/"+project_name
-kernel_bin := "target/x86_64-unknown-none/release/kernel.bin"
+# Absolute paths to the build artifacts.
+kernel_elf := project_dir+"target/x86_64-unknown-none/release"+project_name
+kernel_bin := project_dir+"target/x86_64-unknown-none/release/kernel.bin"
 
 iso_dir := "/tmp/x86_64_kernel_iso"
 
