@@ -1,0 +1,17 @@
+[package]
+name = "a02_divide_conquer_code"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[[bin]]
+name = "a02_divid_conquer_code"
+path = "src/main.rs"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
