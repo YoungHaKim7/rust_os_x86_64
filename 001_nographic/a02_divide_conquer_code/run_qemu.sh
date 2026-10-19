@@ -27,7 +27,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="${PROJECT_DIR:-$SCRIPT_DIR/../x86_64_kernel}"
+PROJECT_DIR="${PROJECT_DIR:-$SCRIPT_DIR/../a02_divide_conquer_code}"
 [ -d "$PROJECT_DIR" ] || PROJECT_DIR="$SCRIPT_DIR"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "error: '$1' not found in PATH — install it first." >&2; exit 1; }; }
@@ -42,7 +42,7 @@ cd "$PROJECT_DIR"
 echo "==> Building 64-bit Rust kernel (release)..."
 cargo build --release
 
-KERNEL_ELF="target/x86_64-unknown-none/release/a01_sample_code"
+KERNEL_ELF="target/x86_64-unknown-none/release/a02_divide_conquer_code"
 KERNEL_BIN="target/x86_64-unknown-none/release/kernel.bin"
 
 echo "==> Extracting raw kernel binary (for embedding in the 32-bit boot stub)..."
