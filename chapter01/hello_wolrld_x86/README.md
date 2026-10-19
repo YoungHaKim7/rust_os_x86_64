@@ -23,3 +23,13 @@ $ ./download/run_qemu.sh
 
 qemu-system-x86_64: terminating on signal 2
 ```
+
+```bash
+$ qemu-system-x86_64 \
+          -kernel asm/boot_stub.elf \
+          -m 512M \
+          -serial stdio \
+          -display none \
+          -no-reboot
+
+```
