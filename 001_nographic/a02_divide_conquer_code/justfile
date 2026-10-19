@@ -29,10 +29,10 @@ project_dir := justfile_directory()
 project_name := `basename "$(pwd)"`
 
 # Absolute paths to the build artifacts.
-kernel_elf := project_dir+"target/x86_64-unknown-none/release"+project_name
-kernel_bin := project_dir+"target/x86_64-unknown-none/release/kernel.bin"
+kernel_elf := "target/x86_64-unknown-none/release"+"/"+project_name
+kernel_bin := "target/x86_64-unknown-none/release/kernel.bin"
 
-iso_dir := "/tmp/x86_64_kernel_iso"
+iso_dir := "target/tmp/x86_64_kernel_iso"
 
 # Default recipe.
 default:
@@ -61,7 +61,7 @@ build: check-deps
     cargo build --release
 
     echo "==> Extracting raw kernel binary..."
-    objcopy -O binary "{{kernel_elf}}" "{{kernel_bin}}"
+    # objcopy -O binary {{kernel_elf}} {{kernel_bin}}
     cp "{{kernel_bin}}" asm/kernel.bin
 
     echo "==> Assembling 32-bit multiboot1 boot stub..."
