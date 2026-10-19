@@ -1,70 +1,147 @@
-# Rust x86_64 OS: build and run in QEMU.
+#!/usr/bin/env just --justfile
+
+# Build and run the x86_64 Rust kernel in QEMU.
+#
+# Prerequisites:
+#   - Rust nightly and x86_64-unknown-none target
+#   - QEMU (qemu-system-x86_64)
+#   - GNU binutils (as, ld, objcopy)
+#   - timeout (for non-interactive mode)
+#   - Optional: grub-mkrescue for ISO mode
+#
 # Usage:
-#   just              # Build and launch QEMU
-#   just run           # Same as just qemu
-#   just qemu          # Headless QEMU, serial output to terminal
-#   just iso           # Build and boot a GRUB ISO
-#   just build         # Build release kernel
-#   just clean         # Clean build artifacts
+#   just                 # Build and run, capturing serial output
+#   just run             # Same as above
+#   just interactive     # Interactive QEMU with serial attached to the TTY
+#   just iso             # Boot using a GRUB ISO
+#   just run-interactive # Alias for interactive mode
+#
+# Interactive mode:
+#   Press Ctrl-A, then X to exit QEMU.
 
 set shell := ["bash", "-cu"]
+set dotenv-load := false
 
+# Use the directory containing this justfile as the project root.
 project_dir := justfile_directory()
 project_name := `basename "$(pwd)"`
 
 kernel_elf := "target/x86_64-unknown-none/release/"+project_name
 kernel_bin := "target/x86_64-unknown-none/release/kernel.bin"
 
+iso_dir := "/tmp/x86_64_kernel_iso"
+
+# Default recipe.
 default:
-    @just qemu
+    @just run
 
-# Check required host tools.
-check-tools:
-    @command -v cargo >/dev/null 2>&1 || { echo "error: cargo not found"; exit 1; }
-    @command -v qemu-system-x86_64 >/dev/null 2>&1 || { echo "error: qemu-system-x86_64 not found"; exit 1; }
-    @command -v as >/dev/null 2>&1 || { echo "error: GNU as not found"; exit 1; }
-    @command -v ld >/dev/null 2>&1 || { echo "error: GNU ld not found"; exit 1; }
-    @command -v objcopy >/dev/null 2>&1 || { echo "error: objcopy not found"; exit 1; }
+# Check whether required commands are available.
+check-deps:
+    #!/usr/bin/env bash
+    set -euo pipefail
 
-# Build the Rust kernel in release mode.
-build:
+    for cmd in cargo qemu-system-x86_64 as ld objcopy; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo "error: '$cmd' not found in PATH — install it first." >&2
+            exit 1
+        fi
+    done
+
+# Build the Rust kernel and prepare the boot stub.
+build: check-deps
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd "{{project_dir}}"
+
+    echo "==> Building 64-bit Rust kernel (release)..."
     cargo build --release
 
-# Build the 32-bit Multiboot boot stub.
-boot-stub: build check-tools
+    echo "==> Extracting raw kernel binary..."
     objcopy -O binary "{{kernel_elf}}" "{{kernel_bin}}"
     cp "{{kernel_bin}}" asm/kernel.bin
+
+    echo "==> Assembling 32-bit multiboot1 boot stub..."
     as --32 -I asm -o asm/boot_stub.o asm/boot_stub.S
     ld -m elf_i386 -T asm/boot_stub.ld -o asm/boot_stub.elf asm/boot_stub.o
 
-# Run QEMU without a graphical window; serial output goes to the terminal.
-qemu: boot-stub
-    @echo "Launching QEMU (headless; Ctrl-A X to exit)..."
-    qemu-system-x86_64 \
+# Run QEMU with captured serial output.
+run: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd "{{project_dir}}"
+
+    SERIAL_LOG="$(mktemp "${TMPDIR:-/tmp}/kernel_serial_XXXXXX.log")"
+    trap 'rm -f "$SERIAL_LOG"' EXIT
+
+    echo "==> Launching QEMU (headless, serial -> $SERIAL_LOG)..."
+    echo "    The kernel prints its banner and halts."
+    echo "    QEMU will run for at most 5 seconds."
+    echo "================================================================"
+
+    timeout 5 qemu-system-x86_64 \
         -kernel asm/boot_stub.elf \
-        -serial stdio \
+        -serial "file:$SERIAL_LOG" \
+        -display none \
+        -no-reboot \
+        -m 256M \
+        || true
+
+    echo
+    echo "==> Captured serial output from the running kernel:"
+    echo "================================================================"
+    cat "$SERIAL_LOG" 2>/dev/null || echo "(no output captured)"
+    echo "================================================================"
+
+# Run QEMU interactively with serial attached to the terminal.
+interactive: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd "{{project_dir}}"
+
+    echo "==> Launching QEMU (interactive, serial -> your TTY)..."
+    echo "    Press Ctrl-A, then X to exit QEMU."
+    echo "================================================================"
+
+    exec qemu-system-x86_64 \
+        -kernel asm/boot_stub.elf \
+        -serial mon:stdio \
         -display none \
         -no-reboot \
         -m 256M
 
-# Alias for qemu.
-run: qemu
+# Alias for interactive mode.
+run-interactive: interactive
 
-# Build and boot a GRUB ISO.
-iso: build check-tools
-    @command -v grub-mkrescue >/dev/null 2>&1 || { echo "error: grub-mkrescue not found; install GRUB and xorriso"; exit 1; }
-    mkdir -p /tmp/x86_64_kernel_iso/boot/grub
-    cp "{{kernel_elf}}" /tmp/x86_64_kernel_iso/boot/kernel.bin
-    cp grub/grub.cfg /tmp/x86_64_kernel_iso/boot/grub/grub.cfg
-    grub-mkrescue -o os.iso /tmp/x86_64_kernel_iso
-    qemu-system-x86_64 \
+# Build a GRUB ISO and boot it.
+iso: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd "{{project_dir}}"
+
+    if ! command -v grub-mkrescue >/dev/null 2>&1; then
+        echo "error: 'grub-mkrescue' not found in PATH." >&2
+        echo "Install GRUB and xorriso to enable ISO mode." >&2
+        exit 1
+    fi
+
+    echo "==> Building GRUB ISO..."
+
+    mkdir -p "{{iso_dir}}/boot/grub"
+
+    cp "{{kernel_elf}}" "{{iso_dir}}/boot/kernel.bin"
+    cp grub/grub.cfg "{{iso_dir}}/boot/grub/grub.cfg"
+
+    grub-mkrescue -o os.iso "{{iso_dir}}"
+
+    echo "==> Launching QEMU from GRUB ISO..."
+
+    exec qemu-system-x86_64 \
         -cdrom os.iso \
-        -serial stdio \
+        -serial mon:stdio \
         -display none \
         -no-reboot \
-        -m 256M
-
-# Remove generated build files.
-clean:
-    cargo clean
-    rm -f asm/kernel.bin asm/boot_stub.o asm/boot_stub.elf os.iso
+        -m 256M   
