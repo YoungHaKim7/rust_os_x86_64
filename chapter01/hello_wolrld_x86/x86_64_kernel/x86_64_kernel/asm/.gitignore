@@ -1,0 +1,3 @@
+boot_stub.elf
+boot_stub.o
+kernel.bin
