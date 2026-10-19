@@ -1,0 +1,12 @@
+
+============================================
+ Hello, x86_64 bare metal!
+ Welcome to my first Rust OS kernel.
+============================================
+
+ CPU is now in 64-bit long mode.
+ Identity-mapped first 1 GiB of memory.
+ COM1 serial port initialized at 38400 baud.
+
+ Boot complete. Entering idle loop (HLT).
+

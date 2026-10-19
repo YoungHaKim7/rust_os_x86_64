@@ -1,0 +1,14 @@
+[package]
+name = "x86_64_kernel"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "x86_64_kernel"
+path = "src/main.rs"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
