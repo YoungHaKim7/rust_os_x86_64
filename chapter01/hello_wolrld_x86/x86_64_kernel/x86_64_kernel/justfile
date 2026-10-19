@@ -1,0 +1,69 @@
+# Rust x86_64 OS: build and run in QEMU.
+# Usage:
+#   just              # Build and launch QEMU
+#   just run           # Same as just qemu
+#   just qemu          # Headless QEMU, serial output to terminal
+#   just iso           # Build and boot a GRUB ISO
+#   just build         # Build release kernel
+#   just clean         # Clean build artifacts
+
+set shell := ["bash", "-cu"]
+
+project_dir := justfile_directory()
+
+kernel_elf := "target/x86_64-unknown-none/release/x86_64_kernel"
+kernel_bin := "target/x86_64-unknown-none/release/kernel.bin"
+
+default:
+    @just qemu
+
+# Check required host tools.
+check-tools:
+    @command -v cargo >/dev/null 2>&1 || { echo "error: cargo not found"; exit 1; }
+    @command -v qemu-system-x86_64 >/dev/null 2>&1 || { echo "error: qemu-system-x86_64 not found"; exit 1; }
+    @command -v as >/dev/null 2>&1 || { echo "error: GNU as not found"; exit 1; }
+    @command -v ld >/dev/null 2>&1 || { echo "error: GNU ld not found"; exit 1; }
+    @command -v objcopy >/dev/null 2>&1 || { echo "error: objcopy not found"; exit 1; }
+
+# Build the Rust kernel in release mode.
+build:
+    cargo build --release
+
+# Build the 32-bit Multiboot boot stub.
+boot-stub: build check-tools
+    objcopy -O binary "{{kernel_elf}}" "{{kernel_bin}}"
+    cp "{{kernel_bin}}" asm/kernel.bin
+    as --32 -I asm -o asm/boot_stub.o asm/boot_stub.S
+    ld -m elf_i386 -T asm/boot_stub.ld -o asm/boot_stub.elf asm/boot_stub.o
+
+# Run QEMU without a graphical window; serial output goes to the terminal.
+qemu: boot-stub
+    @echo "Launching QEMU (headless; Ctrl-A X to exit)..."
+    qemu-system-x86_64 \
+        -kernel asm/boot_stub.elf \
+        -serial stdio \
+        -display none \
+        -no-reboot \
+        -m 256M
+
+# Alias for qemu.
+run: qemu
+
+# Build and boot a GRUB ISO.
+iso: build check-tools
+    @command -v grub-mkrescue >/dev/null 2>&1 || { echo "error: grub-mkrescue not found; install GRUB and xorriso"; exit 1; }
+    mkdir -p /tmp/x86_64_kernel_iso/boot/grub
+    cp "{{kernel_elf}}" /tmp/x86_64_kernel_iso/boot/kernel.bin
+    cp grub/grub.cfg /tmp/x86_64_kernel_iso/boot/grub/grub.cfg
+    grub-mkrescue -o os.iso /tmp/x86_64_kernel_iso
+    qemu-system-x86_64 \
+        -cdrom os.iso \
+        -serial stdio \
+        -display none \
+        -no-reboot \
+        -m 256M
+
+# Remove generated build files.
+clean:
+    cargo clean
+    rm -f asm/kernel.bin asm/boot_stub.o asm/boot_stub.elf os.iso
