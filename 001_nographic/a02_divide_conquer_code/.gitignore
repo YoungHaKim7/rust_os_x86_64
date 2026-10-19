@@ -1,3 +1,8 @@
+# will have compiled files(OS)
+asm/boot_stub.elf
+asm/boot_stub.o
+asm/kernel.bin
+
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 
