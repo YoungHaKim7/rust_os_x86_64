@@ -11,3 +11,5 @@
 # basic-os
 - https://github.com/rust-osdev/bootloader/blob/main/examples/basic/basic-os.md
 
+- ostep-code대박좋다.
+  - https://github.com/remzi-arpacidusseau/ostep-code
