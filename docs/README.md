@@ -1,5 +1,8 @@
 # github(Rust OSdev)
 - https://github.com/rust-osdev
+- https://github.com/YoungHaKim7/ostep-code_rust
+  - 오리지날 코드
+    - https://github.com/remzi-arpacidusseau/ostep-code
 
 # 완성된 코드 x86_64 OS(Rust로 만든거)
 
