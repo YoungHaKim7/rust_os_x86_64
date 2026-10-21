@@ -1,0 +1,161 @@
+#!/usr/bin/env just --justfile
+
+# Build and run the x86_64 Rust kernel in QEMU.
+#
+# Prerequisites:
+#   - Rust nightly and x86_64-unknown-none target
+#   - QEMU (qemu-system-x86_64)
+#   - GNU binutils (as, ld, objcopy)
+#   - timeout (for non-interactive mode)
+#   - Optional: grub-mkrescue for ISO mode
+#
+# Usage:
+#   just                 # Build and run, capturing serial output
+#   just run             # Same as above
+#   just interactive     # Interactive QEMU with serial attached to the TTY
+#   just iso             # Boot using a GRUB ISO
+#   just run-interactive # Alias for interactive mode
+#
+# Interactive mode:
+#   Press Ctrl-A, then X to exit QEMU.
+
+set shell := ["bash", "-cu"]
+set dotenv-load := false
+
+# Project root: directory containing this justfile.
+project_dir := justfile_directory()
+
+# Get the project directory's name using the shell.
+project_name := `basename "$(pwd)"`
+
+# Absolute paths to the build artifacts.
+kernel_elf := "target/x86_64-unknown-none/release/"+project_name
+kernel_bin := "target/x86_64-unknown-none/release/kernel.bin"
+
+iso_dir := "target/tmp/x86_64_kernel_iso"
+
+# GNU cross-binutils.
+as := "x86_64-elf-as"
+ld := "x86_64-elf-ld"
+objcopy := "x86_64-elf-objcopy"
+
+# Default recipe.
+default:
+    @just run
+
+# Check whether required commands are available.
+check-deps:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    for cmd in cargo qemu-system-x86_64 "{{as}}" "{{ld}}" "{{objcopy}}" gtimeout; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo "error: '$cmd' not found in PATH." >&2
+            exit 1
+        fi
+    done
+
+# Build the Rust kernel and prepare the boot stub.
+build: check-deps
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd "{{project_dir}}"
+
+    echo "==> Building 64-bit Rust kernel (release)..."
+    cargo build --release --target x86_64-unknown-none
+
+    echo "==> Extracting raw kernel binary..."
+    "{{objcopy}}" -O binary "{{kernel_elf}}" "{{kernel_bin}}"
+    cp "{{kernel_bin}}" "{{project_dir}}/asm/kernel.bin"
+
+    echo "==> Assembling 32-bit Multiboot1 boot stub..."
+    "{{as}}" --32 -I "{{project_dir}}/asm" \
+    -o "{{project_dir}}/asm/boot_stub.o" \
+    "{{project_dir}}/asm/boot_stub.S"
+
+    "{{ld}}" -m elf_i386 \
+    -T "{{project_dir}}/asm/boot_stub.ld" \
+    -o "{{project_dir}}/asm/boot_stub.elf" \
+    "{{project_dir}}/asm/boot_stub.o"
+
+
+# Run QEMU with captured serial output.
+run: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd "{{project_dir}}"
+
+    SERIAL_LOG="$(mktemp "${TMPDIR:-/tmp}/kernel_serial_XXXXXX.log")"
+    trap 'rm -f "$SERIAL_LOG"' EXIT
+
+    echo "==> Launching QEMU (headless, serial -> $SERIAL_LOG)..."
+    echo "    QEMU will run for at most 5 seconds."
+    echo "================================================================"
+
+    gtimeout 5 qemu-system-x86_64 \
+        -kernel "{{project_dir}}/asm/boot_stub.elf" \
+        -serial "file:$SERIAL_LOG" \
+        -display none \
+        -no-reboot \
+        -m 256M \
+        || true
+
+    echo
+    echo "==> Captured serial output:"
+    echo "================================================================"
+    cat "$SERIAL_LOG" 2>/dev/null || echo "(no output captured)"
+    echo "================================================================"
+
+# Run QEMU interactively with serial attached to the terminal.
+interactive: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd "{{project_dir}}"
+
+    echo "==> Launching QEMU (interactive, serial -> your TTY)..."
+    echo "    Press Ctrl-A, then X to exit QEMU."
+    echo "================================================================"
+
+    exec qemu-system-x86_64 \
+        -kernel asm/boot_stub.elf \
+        -serial mon:stdio \
+        -display none \
+        -no-reboot \
+        -m 256M
+
+# Alias for interactive mode.
+run-interactive: interactive
+
+# Build a GRUB ISO and boot it.
+iso: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd "{{project_dir}}"
+
+    if ! command -v grub-mkrescue >/dev/null 2>&1; then
+        echo "error: 'grub-mkrescue' not found in PATH." >&2
+        echo "Install GRUB and xorriso to enable ISO mode." >&2
+        exit 1
+    fi
+
+    echo "==> Building GRUB ISO..."
+
+    mkdir -p "{{iso_dir}}/boot/grub"
+
+    cp "{{kernel_elf}}" "{{iso_dir}}/boot/kernel.bin"
+    cp grub/grub.cfg "{{iso_dir}}/boot/grub/grub.cfg"
+
+    grub-mkrescue -o os.iso "{{iso_dir}}"
+
+    echo "==> Launching QEMU from GRUB ISO..."
+
+    exec qemu-system-x86_64 \
+        -cdrom os.iso \
+        -serial mon:stdio \
+        -display none \
+        -no-reboot \
+        -m 256M   
