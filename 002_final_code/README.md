@@ -2,6 +2,11 @@
 
 - https://github.com/phil-opp/blog_os/tree/post-12
 
+```bash
+# build하고 image로 bin파일 만들고 최종 실행 명령어
+qemu-system-x86_64 -drive format=raw,file=target/x86_64-blog_os/debug/bootimage-blog_os.bin
+```
+
 # Writing an OS in Rust
 - https://os.phil-opp.com/
 
