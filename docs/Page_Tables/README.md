@@ -20,34 +20,34 @@ There are two kinds of addresses:
 - Physical address: the actual location in physical memory.
 
 For example, imagine this mapping:
+### Example: Virtual Address to Physical Address
 
-## Virtual address
+The CPU uses page tables to translate a virtual address into a physical address.
 
-# 0x10000004470
+| Item | Address | Description |
+|---|---|---|
+| Virtual address | `0x10000004470` | The address used by the kernel's code. |
+| Translation mechanism | Page tables | The CPU's Memory Management Unit (MMU) looks up the mapping. |
+| Physical address | `0x00604470` | The corresponding location in physical RAM. |
 
-Address used by kernel code
+#### Address Translation Flow
 
-CPU translates through page tables
+```text
+Kernel code
+    |
+    | Access virtual address
+    v
+0x10000004470
+    |
+    | CPU MMU consults page tables
+    v
+0x00604470
+    |
+    v
+Physical RAM
+```
 
-## Physical address
-
-# 0x00604470
-
-Actual location in RAM
-
-These addresses are illustrative. The exact mapping depends on how the bootloader and kernel configure the page tables.
-
-Why not simply use physical addresses everywhere? Virtual memory allows an operating system to:
-
-- Give each process its own address space.
-- Map the same physical memory at different virtual addresses.
-- Prevent a process from accessing memory it is not permitted to access.
-- Map large regions of memory without requiring all of them to be physically adjacent.
-
-To accomplish this, x86-64 uses page tables.
-## 2. What Is a Page?
-
-A **page** is a fixed-size block of memory. In standard x86-64 paging, the most common page size is **4 KiB (4096 bytes)**.
+**Note:** These addresses are illustrative. This mapping assumes that the configured page tables map virtual address `0x10000004470` to physical address `0x00604470`. Virtual and physical addresses are not inherently related by a fixed offset; the page tables define the actual mapping.
 
 ### 2.1 Layout of a 4 KiB Page
 
