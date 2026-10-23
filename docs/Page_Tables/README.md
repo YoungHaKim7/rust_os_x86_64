@@ -45,50 +45,70 @@ Why not simply use physical addresses everywhere? Virtual memory allows an opera
 - Map large regions of memory without requiring all of them to be physically adjacent.
 
 To accomplish this, x86-64 uses page tables.
+## 2. What Is a Page?
 
-# 2. What is a page?
+A **page** is a fixed-size block of memory. In standard x86-64 paging, the most common page size is **4 KiB (4096 bytes)**.
 
-A page is a fixed-size block of memory. With standard x86-64 paging, the most common page size is 4 KiB, or 4096 bytes.
+### 2.1 Layout of a 4 KiB Page
 
-### One 4 KiB page
+| Property | Value | Meaning |
+|---|---:|---|
+| Page size | `4096 bytes` | Total size of one page. |
+| Page size in hexadecimal | `0x1000` | Equivalent to 4096 bytes. |
+| Starting offset | `0x000` | First byte in the page. |
+| Ending offset | `0xFFF` | Last byte in the page (4095 in decimal). |
+| Offset width | `12 bits` | Bits needed to identify any byte within the page. |
 
-0
+### 2.2 Page Offset Examples
 
-+100
+The offset identifies a byte's position relative to the beginning of a page.
 
-+200
+| Offset (Hex) | Offset (Decimal) | Position |
+|---|---:|---|
+| `0x000` | 0 | First byte |
+| `0x100` | 256 | 257th byte |
+| `0x200` | 512 | 513th byte |
+| `0x300` | 768 | 769th byte |
+| `0x400` | 1024 | 1025th byte |
+| `0x500` | 1280 | 1281st byte |
+| `0x600` | 1536 | 1537th byte |
+| `0x700` | 1792 | 1793rd byte |
+| `0x800` | 2048 | 2049th byte |
+| `0x900` | 2304 | 2305th byte |
+| `0xA00` | 2560 | 2561st byte |
+| `0xB00` | 2816 | 2817th byte |
+| `0xC00` | 3072 | 3073rd byte |
+| `0xD00` | 3328 | 3329th byte |
+| `0xE00` | 3584 | 3585th byte |
+| `0xF00` | 3840 | 3841st byte |
+| `0xFFF` | 4095 | Last byte |
 
-+300
+### 2.3 How the CPU Uses the Page Offset
 
-+400
+When translating a virtual address, the CPU translates the virtual page to a physical page and preserves the offset within that page.
 
-+500
+For example, suppose virtual page `0x4000` maps to physical page `0x9000`.
 
-+600
+| Item | Address |
+|---|---:|
+| Virtual page base | `0x4000` |
+| Physical page base | `0x9000` |
+| Offset within the page | `0x234` |
+| Resulting virtual address | `0x4234` |
+| Resulting physical address | `0x9234` |
 
-+700
+The calculation is:
 
-+800
+```text
+Virtual address  = 0x4000 + 0x234 = 0x4234
+Physical address = 0x9000 + 0x234 = 0x9234
+```
 
-+900
+The page-table entry determines the physical page base. The CPU preserves the 12-bit offset when translating a standard 4 KiB page.
 
-+A00
+**Key takeaway:** A page is a 4096-byte block, and the 12-bit page offset selects a byte within that block. The page tables determine which physical page corresponds to a virtual page.
 
-+B00
-
-+C00
-
-+D00
-
-+E00
-
-+F00
-
-Start: offset 0
-
-End: offset 4095
-
-The CPU can translate the page's starting address, then preserve the offset within that page.
+- The CPU can translate the page's starting address, then preserve the offset within that page.
 
 A page table maps virtual pages to physical pages.
 
@@ -112,6 +132,50 @@ A single page table could contain a mapping for every virtual page, but a 64-bit
 Instead, x86-64 uses a hierarchy: a table points to smaller tables, and those tables point to further tables or directly to physical memory.
 
 The standard four-level hierarchy looks like this:
+
+### Four-Level x86-64 Page-Table Hierarchy
+
+| Level | Name | Responsibility | Mapping Size |
+|---:|---|---|---|
+| 4 | **PML4** (Page Map Level 4) | Selects a Level 3 table (PDPT). | Normally points to the next level. |
+| 3 | **PDPT** (Page Directory Pointer Table) | Selects a Level 2 table (Page Directory) or maps a large page directly. | 1 GiB, when configured for a huge page. |
+| 2 | **Page Directory (PD)** | Selects a Level 1 table (Page Table) or maps a large page directly. | 2 MiB, when configured for a huge page. |
+| 1 | **Page Table (PT)** | Selects a physical page frame. | 4 KiB. |
+| — | **Physical RAM page** | Contains the actual instructions or data accessed by the CPU. | Depends on the mapping size. |
+
+#### How Address Translation Works
+
+```text
+CR3
+ |
+ v
+Level 4: PML4
+ |
+ v
+Level 3: PDPT
+ |             \
+ v              v
+Level 2: PD     1 GiB page
+ |              (large-page mapping)
+ +----------+
+ |
+ v
+Level 1: PT
+ |             \
+ v              v
+4 KiB page     2 MiB page
+               (large-page mapping)
+```
+
+**Key points:**
+
+- `CR3` holds the physical address of the top-level paging structure.
+- Each table contains up to 512 entries, with each entry occupying 8 bytes.
+- The CPU normally traverses Levels 4 → 3 → 2 → 1 to translate a 4 KiB page.
+- A valid large-page entry can end the walk early at Level 3 (1 GiB) or Level 2 (2 MiB).
+- Page-table entries contain address information and flags, including presence and access permissions.
+
+**Note:** This describes conventional four-level x86-64 paging. CPUs configured for five-level paging use an additional top level.
 
 ### Level 4 — PML4
 
@@ -145,45 +209,44 @@ The names can be confusing, so start with the abbreviations:
 
 The correct spelling is PML4, not PLM4.
 
-## 4. How a virtual address is divided
+### 4. How a Virtual Address Is Divided
 
-For conventional x86-64 four-level paging with 48-bit virtual addresses, the CPU splits a virtual address into five parts.
+For conventional x86-64 four-level paging with 48-bit virtual addresses, the CPU divides the address into five fields.
 
-### 9 bits
+| Field | Bit Range | Size | Purpose |
+|---|---|---:|---|
+| PML4 index | Bits 47–39 | 9 bits | Selects an entry in the Level 4 table. |
+| PDPT index | Bits 38–30 | 9 bits | Selects an entry in the Level 3 table. |
+| PD index | Bits 29–21 | 9 bits | Selects an entry in the Level 2 page directory. |
+| PT index | Bits 20–12 | 9 bits | Selects an entry in the Level 1 page table. |
+| Page offset | Bits 11–0 | 12 bits | Selects a byte within a 4 KiB page. |
+| **Total** | **Bits 47–0** | **48 bits** | **Virtual address used for translation.** |
 
-PML4
+#### Visual Representation
 
-### 9 bits
+```text
+  47          39 38          30 29          21 20          12 11           0
+ +--------------+--------------+--------------+--------------+--------------+
+ | PML4 index   | PDPT index   | PD index     | PT index     | Page offset  |
+ |    9 bits    |    9 bits    |    9 bits    |    9 bits    |    12 bits   |
+ +--------------+--------------+--------------+--------------+--------------+
+```
 
-PDPT
+#### Why These Sizes?
 
-### 9 bits
+Each page-table entry is 8 bytes, and each page-table page is 4096 bytes:
 
-PD
+| Calculation | Result |
+|---|---:|
+| Entries per table | `4096 / 8 = 512` |
+| Bits needed to select 512 entries | `log₂(512) = 9 bits` |
+| Bytes in a standard page | `2¹² = 4096 bytes` |
+| Bits used by the page offset | `12 bits` |
+| Total virtual-address width used | `9 + 9 + 9 + 9 + 12 = 48 bits` |
 
-### 9 bits
+**Key takeaway:** The four 9-bit indexes navigate the page-table hierarchy, while the final 12 bits identify a byte inside the mapped 4 KiB physical page.
 
-PT
-
-### 12 bits
-
-Offset
-
-From left to right: bits 47–39, 38–30, 29–21, 20–12, and 11–0.
-
-Why nine bits per level?
-
-A page-table entry occupies 8 bytes, and each table occupies one 4 KiB page:
-
-\\[ 4096 \div 8 = 512 = 2^9 \\]
-
-So each table contains 512 entries. Nine bits select one of those 512 entries.
-
-Why twelve bits for the offset?
-
-\\[ 4\text{ KiB} = 4096 = 2^{12} \\]
-
-The last 12 bits identify a byte inside a 4 KiB page.
+**Note:** This describes conventional four-level paging with 48-bit canonical virtual addresses. The upper address bits (63–48) must be a sign extension of bit 47; they are not additional page-table indexes.
 
 ## 5. Level 4 — PML4
 
