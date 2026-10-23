@@ -678,3 +678,101 @@ Kernel initialization
 - **Runtime order** describes how the computer loads and executes that kernel.
 - `asm/linker.ld` influences the executable's layout but never executes.
 - `asm/boot.S` is executable machine code, but it runs only if the boot process transfers control to it.
+
+Add this section after 3.1 Example Physical RAM Layout in your `README.md`. It clarifies the difference between physical addresses and virtual addresses in an x86-64 kernel.
+
+### 3.2 Physical Addresses vs. Virtual Addresses
+
+A **physical address** identifies a location in RAM, while a **virtual address** is an address used by the CPU when paging is enabled. The CPU's page tables translate virtual addresses into physical addresses.
+
+| Concept     | Physical Address                                 | Virtual Address                                       |
+| ----------- | ------------------------------------------------ | ----------------------------------------------------- |
+| Meaning     | Location in physical memory                      | Address used by executing code                        |
+| Managed by  | Hardware platform and physical memory layout     | CPU paging and page tables                            |
+| Translation | Does not require virtual-to-physical translation | Translated through page tables when paging is enabled |
+| Example     | `0x00606000`                                     | `0x10000006000`                                       |
+| Used for    | Locating data in RAM                             | Accessing instructions and data from software         |
+
+**Important:** The example addresses above are illustrative. A physical address and its corresponding virtual address may be identical or different.
+
+#### Example: Mapping a Kernel into Virtual Memory
+
+Suppose the bootloader loads a kernel at physical address `0x00600000`, while the kernel is linked to execute at virtual address `0x10000000000`.
+
+| Item                                                             | Address         |
+| ---------------------------------------------------------------- | --------------- |
+| Physical load address                                            | `0x00600000`    |
+| Kernel virtual base address                                      | `0x10000000000` |
+| Example offset within the kernel                                 | `0x4470`        |
+| Corresponding physical address, assuming a direct offset mapping | `0x00604470`    |
+| Corresponding virtual address                                    | `0x10000004470` |
+
+In this example, the mapping preserves the offset `0x4470` within the kernel image:
+
+```
+Virtual address:  0x10000000000 + 0x4470
+                  = 0x10000004470
+
+Physical address: 0x00600000 + 0x4470
+                  = 0x00604470
+```
+
+This relationship is valid only if the page tables map the corresponding regions with that offset. Virtual and physical addresses are not inherently related by simple addition.
+
+#### How the CPU Translates an Address
+
+```
+Rust kernel code
+       |
+       | Accesses virtual address
+       v
++--------------------------+
+| CPU MMU                  |
+|                          |
+| Consults page tables     |
++--------------------------+
+       |
+       | Translates address
+       v
+Physical address in RAM
+```
+
+The page tables determine which physical memory each virtual address accesses and what permissions apply.
+
+#### Why This Matters During Boot
+
+Early boot code must establish the address mappings required by the kernel before accessing memory through virtual addresses that are not yet mapped.
+
+A typical x86-64 startup sequence may:
+
+1. Allocate or reserve memory for page tables.
+2. Populate page-table entries that map the kernel and other required regions.
+3. Load the physical address of the top-level page table into `CR3`.
+4. Enable paging and enter the required CPU execution mode, if these steps have not already been completed by the bootloader.
+5. Transfer control to the kernel's virtual entry point.
+
+The exact responsibilities depend on the boot protocol. Some bootloaders establish long mode and the required mappings before entering the kernel.
+
+#### Inspect Addresses in the ELF
+
+Use these commands to inspect the kernel's virtual addresses and loadable segments:
+
+```
+# ELF entry point and file metadata
+readelf -h target/x86_64-unknown-none/debug/a02_hello_world
+
+# Section addresses
+readelf -S target/x86_64-unknown-none/debug/a02_hello_world
+
+# Segment virtual addresses, physical addresses, and sizes
+readelf -l target/x86_64-unknown-none/debug/a02_hello_world
+
+# Symbol addresses
+nm -n target/x86_64-unknown-none/debug/a02_hello_world
+```
+
+Use the actual ELF path produced by your build. Also note that `readelf` reports addresses encoded in the ELF; it does not show the complete runtime page-table mapping.
+
+**Key takeaway:** The linker determines the addresses encoded in the kernel image, the bootloader loads the image into physical memory, and the page tables determine how the CPU accesses that memory through virtual addresses.
+
+One detail from your earlier QEMU output is especially relevant: the bootloader reported a physical kernel load address of `0x06060000` and a virtual address offset of `0x10000000000`. Those are runtime log values, so compare them with `readelf -l` and your page-table setup rather than assuming the illustrative mapping above matches your actual kernel.
