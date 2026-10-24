@@ -1,0 +1,6 @@
+[package]
+name = "page_mapped_to_physical_frames"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
