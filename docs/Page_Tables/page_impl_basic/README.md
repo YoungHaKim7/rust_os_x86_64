@@ -21,7 +21,7 @@ Let's implement it from scratch, starting with a simple, runnable example and th
 
 Create `src/main.rs`:
 
-```
+```rs
 
 const PAGE_SIZE: u64 = 4096; // 4 KiB
 
@@ -75,14 +75,14 @@ fn main() {
 
 Run it:
 
-```
+```bash
 rustc main.rs -o page_demo
 ./page_demo
 ```
 
 Expected output:
 
-```
+```bash
 Page:             Page { number: 4 }
 Page number:      0x4
 Start address:    0x4000
@@ -118,7 +118,7 @@ These work because the page size is \\(2^{12}\\).
 
 In a real x86-64 kernel, it's useful to make the page size a compile-time constant and prevent accidental construction of unaligned page addresses.
 
-```
+```rs
 
 const PAGE_SIZE: u64 = 4096;
 const PAGE_MASK: u64 = PAGE_SIZE - 1;
@@ -190,7 +190,7 @@ A `Page` describes a virtual page; it does not allocate physical RAM or create a
 
 For example, a kernel might eventually perform an operation conceptually like this:
 
-```
+```rs
 // Conceptual API; these types and methods are not
 // defined in the examples above.
 
