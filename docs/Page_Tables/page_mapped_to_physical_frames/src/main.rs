@@ -63,20 +63,13 @@ impl Mapper {
         }
     }
 
-    fn map(
-        &mut self,
-        page: Page,
-        frame: PhysFrame,
-        writable: bool,
-    ) -> Result<(), &'static str> {
+    fn map(&mut self, page: Page, frame: PhysFrame, writable: bool) -> Result<(), &'static str> {
         if self.mappings.contains_key(&page.start()) {
             return Err("Virtual page is already mapped");
         }
 
-        self.mappings.insert(
-            page.start(),
-            Mapping { frame, writable },
-        );
+        self.mappings
+            .insert(page.start(), Mapping { frame, writable });
 
         Ok(())
     }
@@ -133,4 +126,3 @@ fn main() -> Result<(), &'static str> {
 
     Ok(())
 }
-
