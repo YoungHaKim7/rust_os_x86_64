@@ -22,7 +22,6 @@ $ eza -TL2
 │   └── start.s
 ├── Cargo.lock
 ├── Cargo.toml
-├── justfile
 ├── README.md
 ├── rust-toolchain.toml
 └── src
