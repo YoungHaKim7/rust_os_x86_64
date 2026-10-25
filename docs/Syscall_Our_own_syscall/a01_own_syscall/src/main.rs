@@ -3,7 +3,7 @@
 
 use core::{arch::global_asm, panic::PanicInfo};
 
-global_asm!(include_str!("../asm/start.s"), options(att_syntax));
+global_asm!(include_str!("../asm/start.s"));
 
 unsafe extern "C" {
     fn my_write(fd: i32, buf: *const u8, len: usize) -> isize;

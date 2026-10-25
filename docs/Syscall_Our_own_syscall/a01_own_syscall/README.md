@@ -331,3 +331,18 @@ Fixed — `cargo r` now prints `Hello world!` and exits cleanly with code 0. The
 4. **Segfault at runtime**: rustc links this target as PIE (`-pie`), producing an `ET_DYN` binary. The kernel then loads it at a randomized base instead of `0x400000`, while the code uses absolute addresses — so the string reference pointed at unmapped memory. Adding `-C link-arg=-no-pie` produces a proper static `ET_EXEC` at `0x400000`.
 
 The `my_write` wrapper also documents why clobbered registers don't need saving: `syscall` destroys `rcx` and `r11`, but both are caller-saved in the SysV ABI.
+
+# intel syntax fix code(`asm/start.s`)
+
+- Converting the assembly to Intel syntax (destination first, no `%` prefixes, no `$` on immediates) and removing the `att_syntax` option from `main.rs`.
+
+Done — `asm/start.s` is now Intel syntax and still prints `Hello world!` with exit code 0. I also removed `options(att_syntax)` from `src/main.rs:6` since it's no longer needed.
+
+The conversion rules applied:
+
+- Operand order flipped to destination-first: `movl %eax, %edi` → `mov edi, eax`
+- Register `%` prefixes dropped: `%rdi` → `rdi`
+- Immediate `$` prefixes dropped: `movq $60, %rax` → `mov rax, 60`
+- Register names imply the size, so the `l`/`q` instruction suffixes are gone (`movq` → `mov`)
+
+- Everything else — directives like `.section`, `.global`, `.type`, `call`, `syscall`, `ud2` — is identical in both dialects. The comments and structure are unchanged.

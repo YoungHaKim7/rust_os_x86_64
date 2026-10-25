@@ -9,8 +9,8 @@ _start:
     call main
 
     # exit(main_return_value)
-    movl %eax, %edi
-    movq $60, %rax
+    mov edi, eax
+    mov rax, 60
     syscall
 
     # Should never be reached.
@@ -33,10 +33,10 @@ _start:
 # rdx = arg3
 
 linux_syscall:
-    movq %rdi, %rax
-    movq %rsi, %rdi
-    movq %rdx, %rsi
-    movq %rcx, %rdx
+    mov rax, rdi
+    mov rdi, rsi
+    mov rsi, rdx
+    mov rdx, rcx
     syscall
     ret
 
@@ -51,9 +51,8 @@ linux_syscall:
 # both are caller-saved in the SysV ABI.
 
 my_write:
-    movq $1, %rax
+    mov rax, 1
     syscall
     ret
 
 .section .note.GNU-stack,"",@progbits
-	
