@@ -31,7 +31,7 @@ $ eza -TL2
 
 ## 2. `src/main.rs`
 
-```
+```rs
 
 #![no_std]
 #![no_main]
@@ -86,7 +86,7 @@ Key fixes:
 
 Your original syscall register mapping is appropriate for a six-argument syscall wrapper, but the Rust declaration only needs four arguments for `write`. We can simplify the assembly and make the ABI explicit.
 
-```
+```asm
 
 .section .text
 
@@ -142,7 +142,7 @@ For `write`, we only need three syscall arguments, so the wrapper above does not
 
 In `main.rs`, use the following declaration and call. This matches the assembly function exactly.
 
-```
+```rs
 
 unsafe extern "C" {
     fn linux_syscall(
@@ -157,7 +157,7 @@ unsafe extern "C" {
 
 Inside `main`, the call is:
 
-```
+```rs
 
 let message = b"Hello world!\n";
 
@@ -176,7 +176,7 @@ Use this in place of the earlier `my_write` declaration and call. The `result` i
 
 ## 5. `Cargo.toml`
 
-```
+```toml
 [package]
 name = "no_std_hello"
 version = "0.1.0"
@@ -199,13 +199,13 @@ panic = "abort"
 
 Install the target if needed:
 
-```
+```bash
 rustup target add x86_64-unknown-linux-gnu
 ```
 
 Build with the custom `_start` entry point:
 
-```
+```bash
 cargo rustc --release --target x86_64-unknown-linux-gnu -- \
   -C link-arg=-nostartfiles \
   -C link-arg=-Wl,-e,_start
@@ -213,13 +213,13 @@ cargo rustc --release --target x86_64-unknown-linux-gnu -- \
 
 Run:
 
-```
+```bash
 ./target/x86_64-unknown-linux-gnu/release/no_std_hello
 ```
 
 Expected output:
 
-```
+```bash
 Hello world!
 ```
 
@@ -229,7 +229,7 @@ Here is a `linker.ld` for your Linux x86-64 `no_std` Rust executable using `src/
 
 `linker.ld`
 
-```
+```ld
 
 OUTPUT_FORMAT(elf64-x86-64)
 OUTPUT_ARCH(i386:x86-64)
@@ -282,7 +282,7 @@ SECTIONS
 
 Add the linker script argument to your build command:
 
-```
+```bash
 cargo rustc --release --target x86_64-unknown-linux-gnu -- \
   -C link-arg=-nostartfiles \
   -C link-arg=-Wl,-T,linker.ld \
@@ -303,4 +303,4 @@ cargo rustc --release --target x86_64-unknown-linux-gnu -- \
 | `.bss`                  | Reserves zero-initialized global data.                                        |
 | `/DISCARD/`             | Removes selected metadata sections.                                           |
 
-Important: This script is a minimal starting point, not a complete production linker script. If you use Rust's `core` with compiler-generated support sections, you may need to retain additional sections. Also, `-nostartfiles` does not automatically disable every default linker behavior; for a fully controlled freestanding build, inspect the generated ELF with `readelf -lW` and `readelf -SW`.
+- Important: This script is a minimal starting point, not a complete production linker script. If you use Rust's `core` with compiler-generated support sections, you may need to retain additional sections. Also, `-nostartfiles` does not automatically disable every default linker behavior; for a fully controlled freestanding build, inspect the generated ELF with `readelf -lW` and `readelf -SW`.
