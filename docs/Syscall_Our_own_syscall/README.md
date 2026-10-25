@@ -17,3 +17,6 @@
 
 # x86 Assembly/Interfacing with Linux
 - https://en.wikibooks.org/wiki/X86_Assembly/Interfacing_with_Linux
+
+# Linux Kernel ABI docs
+- https://docs.kernel.org/admin-guide/abi-stable.html
