@@ -14,3 +14,6 @@
 ```
 - https://codeberg.org/Swindlers-Inc/hodgepodge
 - https://youtu.be/U9nHEA6aOmI?si=15O5-posc6k_ijU3
+
+# x86 Assembly/Interfacing with Linux
+- https://en.wikibooks.org/wiki/X86_Assembly/Interfacing_with_Linux
