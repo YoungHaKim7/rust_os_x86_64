@@ -304,3 +304,31 @@ cargo rustc --release --target x86_64-unknown-linux-gnu -- \
 | `/DISCARD/`             | Removes selected metadata sections.                                           |
 
 - Important: This script is a minimal starting point, not a complete production linker script. If you use Rust's `core` with compiler-generated support sections, you may need to retain additional sections. Also, `-nostartfiles` does not automatically disable every default linker behavior; for a fully controlled freestanding build, inspect the generated ELF with `readelf -lW` and `readelf -SW`.
+
+# fix
+
+- The errors mean the assembler is receiving AT&T syntax (`%eax`, `$60`) while Rust's `asm!` defaults to Intel syntax. Let me look at the code to fix it.
+
+The assembly file is written in AT&T syntax, but Rust's `global_asm!` defaults to Intel syntax on x86-64 — that's what the "unknown token in expression" errors at every `%` and `$` are about. The minimal fix is to declare the dialect with `options(att_syntax)`.
+
+The assembly compiles now. The next failure is in `.cargo/config.toml`: this target links with `rust-lld`, which doesn't understand GCC driver flags like `-nostartfiles` and `-Wl,...`. Let me check the linker script and fix the flags.
+
+The linker script already sets `ENTRY(_start)`, so the GCC-style driver flags are both unnecessary and unsupported by `rust-lld`. I'll remove them:
+
+`my_write` is declared in Rust but never defined — the assembly file only has `_start` and `linux_syscall`. I'll add a `my_write(fd, buf, len)` wrapper to `start.s`; the C ABI arguments are already in the registers Linux's `write` syscall expects, so it just needs the syscall number in `rax`.
+
+It builds and runs now, but segfaults at startup. Let me inspect the produced ELF — I suspect the `-pie` flag rustc passes conflicts with the fixed `0x400000` load address.
+
+The binary is linked as PIE (`ET_DYN`) because rustc passes `-pie`, but the code uses absolute addresses for the fixed `0x400000` layout. The kernel loads PIE at a randomized base, so those absolute references point to unmapped memory — hence the segfault. Forcing a non-PIE static executable fixes it:
+
+Fixed — `cargo r` now prints `Hello world!` and exits cleanly with code 0. There were four separate problems:
+
+1. **AT&T vs Intel syntax** (your original error): `asm/start.s` is written in AT&T syntax (`%eax`, `$60`), but Rust's `global_asm!` defaults to Intel syntax on x86-64, so every `%` and `$` was an "unknown token". I added `options(att_syntax)` to the `global_asm!` call in `src/main.rs:6`.
+
+2. **GCC driver flags rust-lld doesn't understand**: this target links with `rust-lld`, which rejects `-nostartfiles` and `-Wl,-e,_start` (those are for a `gcc`-style driver). The linker script already has `ENTRY(_start)`, so I removed both from `.cargo/config.toml`.
+
+3. **Missing `my_write`**: `main.rs` declares `my_write` as extern, but it was never defined anywhere — only `linux_syscall` was in the assembly. I added a `my_write(fd, buf, len)` implementation to `asm/start.s`. It's short because the C ABI already passes the arguments in `rdi`/`rsi`/`rdx`, exactly the registers the `write(2)` syscall wants; it just loads `SYS_write` (1) into `rax` and executes `syscall`.
+
+4. **Segfault at runtime**: rustc links this target as PIE (`-pie`), producing an `ET_DYN` binary. The kernel then loads it at a randomized base instead of `0x400000`, while the code uses absolute addresses — so the string reference pointed at unmapped memory. Adding `-C link-arg=-no-pie` produces a proper static `ET_EXEC` at `0x400000`.
+
+The `my_write` wrapper also documents why clobbered registers don't need saving: `syscall` destroys `rcx` and `r11`, but both are caller-saved in the SysV ABI.

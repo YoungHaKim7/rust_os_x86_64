@@ -3,7 +3,6 @@ target = "x86_64-unknown-none"
 
 [target.x86_64-unknown-none]
 rustflags = [
-    "-C", "link-arg=-T./asm/linker.ld",
-    "-C", "link-arg=-nostartfiles",
-    "-C", "link-arg=-Wl,-e,_start",
+    "-C", "link-arg=-Tasm/linker.ld",
+    "-C", "link-arg=-no-pie",
 ]

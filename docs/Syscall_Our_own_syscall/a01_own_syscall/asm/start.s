@@ -40,5 +40,20 @@ linux_syscall:
     syscall
     ret
 
+
+.global my_write
+.type my_write, @function
+
+# my_write(fd, buf, len) -> isize
+# C ABI already passes fd/rdi, buf/rsi, len/rdx,
+# which matches the Linux write(2) argument registers.
+# rax = 1 (SYS_write); rcx and r11 are clobbered by syscall,
+# both are caller-saved in the SysV ABI.
+
+my_write:
+    movq $1, %rax
+    syscall
+    ret
+
 .section .note.GNU-stack,"",@progbits
 	
