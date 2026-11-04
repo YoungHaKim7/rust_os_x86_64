@@ -8,6 +8,15 @@ edition = "2024"
 [[bin]]
 name = "mmu_impl"
 path = "src/main.rs"
+# no_std kernel: there is no libtest (crate `test`) for this target.
+# test/bench = false keeps `cargo test` a no-op, but note that
+# `--all-targets` still builds the test compilation of a bin, so
+# harness = false is what actually removes the libtest dependency:
+# cargo compiles that unit as a plain executable (no injected
+# harness), and the kernel's own ENTRY(_start) satisfies linking.
+test = false
+bench = false
+harness = false
 
 [profile.dev]
 panic = "abort"
