@@ -97,6 +97,40 @@ run: build
     cat "$SERIAL_LOG" 2>/dev/null || echo "(no output captured)"
     echo "================================================================"
 
+# Run QEMU with KVM and the host CPU, so the kernel sees the host's
+# full feature set (PCID, INVPCID, ...). QEMU's TCG models do not
+# expose PCID/INVPCID — even with `-cpu max,pcid=on,invpcid=on` — so
+# the PCID enable path in mm/pcid.rs can only be exercised this way.
+run-kvm: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd "{{project_dir}}"
+
+    SERIAL_LOG="$(mktemp "${TMPDIR:-/tmp}/kernel_serial_XXXXXX.log")"
+    trap 'rm -f "$SERIAL_LOG"' EXIT
+
+    echo "==> Launching QEMU (KVM, host CPU, headless, serial -> $SERIAL_LOG)..."
+    echo "    The kernel prints its banner, sets up PCID/INVPCID, and halts."
+    echo "    QEMU will run for at most 5 seconds."
+    echo "================================================================"
+
+    timeout 5 qemu-system-x86_64 \
+        -enable-kvm \
+        -cpu host \
+        -kernel asm/boot_stub.elf \
+        -serial "file:$SERIAL_LOG" \
+        -display none \
+        -no-reboot \
+        -m 256M \
+        || true
+
+    echo
+    echo "==> Captured serial output from the running kernel:"
+    echo "================================================================"
+    cat "$SERIAL_LOG" 2>/dev/null || echo "(no output captured)"
+    echo "================================================================"
+
 # Run QEMU interactively with serial attached to the terminal.
 interactive: build
     #!/usr/bin/env bash

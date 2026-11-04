@@ -14,11 +14,16 @@
  * Plan:
  *   1. Preserve eax/ebx so the kernel can read them later.
  *   2. Set up a tiny stack for ourselves.
- *   3. Zero the kernel's .bss area (0x204000 .. 0x20b000) so its page
- *      tables and stack start clean.
- *   4. Far-jump directly to the kernel's _start at 0x201000 (32-bit code).
+ *   3. Far-jump directly to the kernel's _start at 0x201000 (32-bit code).
  *      The kernel's asm/boot.S takes it from there — it does the
  *      32-bit -> 64-bit transition itself.
+ *
+ * NOTE: no .bss zeroing here. An earlier version hardcoded a
+ * 0x204000..0x20b000 fill for the kernel's .bss, but those constants
+ * rot the moment the kernel grows: as soon as .rodata crossed 0x204000
+ * this stub wiped the GDT on its way in and the kernel triple-faulted.
+ * The kernel's only zero-initialized .bss objects are the page tables,
+ * and asm/boot.S zeroes those itself; the stack needs no zeroing.
  *
  * Why this exists: QEMU's `-kernel` multiboot1 loader only accepts ELF32
  * images, but our kernel is ELF64 (Rust on x86_64-unknown-none). GRUB's
@@ -57,15 +62,6 @@ _start:
     /* Set up a small stack in low conventional memory. */
     mov     $0x80000, %esp
     xor     %ebp, %ebp
-
-    /* Zero the kernel's .bss area: 0x204000 .. 0x20b000 (28 KiB).
-     * That covers pml4_table (4K) + pdpt_table (4K) + pd_table (4K)
-     * + 16 KiB stack. The kernel's boot.S expects these to start zeroed. */
-    mov     $0x204000, %edi
-    xor     %eax, %eax
-    mov     $0x1c00, %ecx              /* 0x7000 bytes / 4 = 0x1c00 dwords */
-    cld
-    rep     stosl
 
     /* Far jump to the kernel's _start at 0x201000.
      * Use CS=0x08 just in case QEMU's loader left CS in a weird state —

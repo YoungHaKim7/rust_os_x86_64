@@ -37,11 +37,13 @@ impl Cr3 {
 pub unsafe fn read_cr3() -> u64 {
     let value: u64;
 
-    asm!(
-        "mov {}, cr3",
-        out(reg) value,
-        options(nomem, nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            "mov {}, cr3",
+            out(reg) value,
+            options(nomem, nostack, preserves_flags)
+        );
+    }
 
     value
 }
@@ -55,11 +57,13 @@ pub unsafe fn read_cr3() -> u64 {
 /// - No-flush must only be used when PCIDE is enabled.
 #[inline(always)]
 pub unsafe fn write_cr3(cr3: Cr3) {
-    asm!(
-        "mov cr3, {}",
-        in(reg) cr3.value(),
-        options(nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            "mov cr3, {}",
+            in(reg) cr3.value(),
+            options(nostack, preserves_flags)
+        );
+    }
 }
 
 /// Context switch: load another address space.
@@ -71,5 +75,7 @@ pub unsafe fn load_new_mm_cr3(pml4_phys: u64, new_pcid: u16, noflush: bool) {
         cr3 = cr3.with_noflush();
     }
 
-    write_cr3(cr3);
+    unsafe {
+        write_cr3(cr3);
+    }
 }

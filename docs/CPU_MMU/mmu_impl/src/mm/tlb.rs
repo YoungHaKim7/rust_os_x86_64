@@ -11,11 +11,13 @@ use core::arch::asm;
 /// the current privilege level permits INVLPG.
 #[inline(always)]
 pub unsafe fn invlpg(addr: u64) {
-    asm!(
-        "invlpg [{}]",
-        in(reg) addr,
-        options(nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            "invlpg [{}]",
+            in(reg) addr,
+            options(nostack, preserves_flags)
+        );
+    }
 }
 
 /// Reload CR3 to invalidate translations.
@@ -25,11 +27,13 @@ pub unsafe fn invlpg(addr: u64) {
 /// and its no-flush bit.
 #[inline(always)]
 pub unsafe fn flush_tlb_all(cr3_value: u64) {
-    asm!(
-        "mov cr3, {}",
-        in(reg) cr3_value,
-        options(nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            "mov cr3, {}",
+            in(reg) cr3_value,
+            options(nostack, preserves_flags)
+        );
+    }
 }
 
 /// Invalidate a virtual address range.
@@ -42,7 +46,9 @@ pub unsafe fn flush_tlb_range(start: u64, end: u64) {
     let mut addr = start & !0xfff;
 
     while addr < end {
-        invlpg(addr);
+        unsafe {
+            invlpg(addr);
+        }
         addr += 4096;
     }
 }
