@@ -20,5 +20,10 @@
 - https://docs.rust-embedded.org/book/intro/index.html
 - https://github.com/EbookFoundation/free-programming-books/blob/main/books/free-programming-books-langs.md#rust
 
+- Ibex is a small 32-bit RISC-V CPU core with high-level of verification (previously known as zero-riscy)
+  - https://github.com/lowRISC/ibex
+
+
+
 # 유튜브영상 모음
 - [260927) 임베디드에서 가장 많이 사용하는 직렬 통신 UART, SPI, I2C를 한 영상으로 정리 | 직렬 통신 이 영상 하나로 끝내기 | 인사이드 임베디드](https://youtu.be/3TNNHFHgH_o?si=z387nH-m2wJ12twb)
