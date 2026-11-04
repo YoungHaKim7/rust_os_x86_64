@@ -10,3 +10,6 @@
 
 # basic-os
 - https://github.com/rust-osdev/bootloader/blob/main/examples/basic/basic-os.md
+
+# 최종 목표(wsl2)
+- https://github.com/microsoft/WSL
