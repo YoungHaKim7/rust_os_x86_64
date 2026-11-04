@@ -13,3 +13,5 @@
 
 # 최종 목표(wsl2)
 - https://github.com/microsoft/WSL
+- 이건 API binding만 한것 같은 아쉽 ㅠㅠ
+  - https://github.com/mmastrac/wsl-rust
