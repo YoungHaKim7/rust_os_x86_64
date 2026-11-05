@@ -46,9 +46,9 @@ Section layout looks sane (`_start` at 0x201000 matches the stub's jump target; 
 
 Two resets — the second is a triple fault (QEMU exits due to `-no-reboot`). Let me see the exception details around it:
 
-#GP (error code 8) at EIP `0x201088`, doubling to a triple fault — that's in `boot.S`'s 32-bit→64-bit transition. Let me identify the exact instruction and the register state at the fault:
+# #GP (error code 8) at EIP `0x201088`, doubling to a triple fault — that's in `boot.S`'s 32-bit→64-bit transition. Let me identify the exact instruction and the register state at the fault:
 
-The faulting instruction is the far jump `EA` at `0x201088` jumping to selector `0x08` — the CS descriptor load fails (#GP, error code = 8). Long mode is active (EFER=0x500: LME+LMA), CR3/CR4 are fine. The suspect is the GDTR contents. Let me verify what `lgdt` actually loaded:
+- The faulting instruction is the far jump `EA` at `0x201088` jumping to selector `0x08` — the CS descriptor load fails (#GP, error code = 8). Long mode is active (EFER=0x500: LME+LMA), CR3/CR4 are fine. The suspect is the GDTR contents. Let me verify what `lgdt` actually loaded:
 
 **Found it — a pre-existing latent bug that my larger kernel image exposed.** `boot_stub.S` hardcodes a zero-fill of `0x204000..0x20b000`, assuming the kernel's `.bss` starts at 0x204000. My new code grew `.text`/`.rodata`, so `.rodata` (including the GDT and its pointer) now lives at 0x204000 — the stub **wipes the GDT to zeros** before jumping in. `lgdt` then loads a zero GDTR, and the far jump to selector 0x08 raises #GP(8) → triple fault.
 
