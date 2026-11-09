@@ -15,6 +15,8 @@
 - https://github.com/RustOS-Dev/RustOS
 
 # basic-os
+- 전체 개념 간략하게
+  - https://github.com/ljskernel/linux-vm-notes/blob/master/sections/fundamentals.md
 - https://github.com/rust-osdev/bootloader/blob/main/examples/basic/basic-os.md
 
 - https://docs.rust-embedded.org/book/intro/index.html
