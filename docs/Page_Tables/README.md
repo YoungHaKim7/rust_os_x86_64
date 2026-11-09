@@ -1,3 +1,9 @@
+# Linux vm notes
+- https://github.com/ljskernel/linux-vm-notes/blob/master/sections/page-tables.md
+
+
+<hr />
+
 Let's build the idea from the beginning using x86-64 and Rust. The most important concept is this:
 
 Page tables are data structures that tell the CPU which physical RAM address corresponds to a virtual address. The CPU walks through these structures automatically whenever it needs to translate a virtual address.
